@@ -32,7 +32,17 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((res) => {
-      return res || fetch(e.request);
+      if (res) return res;
+      return fetch(e.request).then((networkRes) => {
+        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic') {
+          return networkRes;
+        }
+        const toCache = networkRes.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, toCache);
+        });
+        return networkRes;
+      }).catch(() => res);
     })
   );
 });

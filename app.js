@@ -216,106 +216,178 @@ function haptic(type) {
 }
 
 // ============================================
-// Speech Synthesis - Android Chrome Fix
+// نظام الصوت المعتمد لتطبيق محمود (كما في تطبيق Kids)
+// 1. تشغيل الملف الصوتي المباشر MP3 (يعمل 100% وبدون نت)
+// 2. إذا لم يتوفر ملف، نطق أونلاين بسياسة no-referrer (Google TTS)
+// 3. دعم SpeechSynthesis كخيار إضافي
 // ============================================
-let arabicVoice = null;
 
-function loadVoices(callback) {
-  const trySet = () => {
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) return false;
-    // نجيب أفضل صوت عربي، أو أي صوت متاح
-    arabicVoice =
-      voices.find(v => v.lang === 'ar-EG') ||
-      voices.find(v => v.lang === 'ar-SA') ||
-      voices.find(v => v.lang.startsWith('ar')) ||
-      voices[0];
-    if (callback) callback(arabicVoice);
-    return true;
+let fallbackAudio = null;
+let referrerMeta = null;
+
+function setReferrerPolicy(policy) {
+  try {
+    if (!referrerMeta) {
+      referrerMeta = document.createElement('meta');
+      referrerMeta.name = 'referrer';
+      document.head.appendChild(referrerMeta);
+    }
+    referrerMeta.content = policy;
+  } catch (e) {}
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    try {
+      referrerMeta.content = 'strict-origin-when-cross-origin';
+    } catch (e) {}
   };
+}
 
-  if (!trySet()) {
-    // Android بيحتاج وقت لتحميل الأصوات
-    window.speechSynthesis.addEventListener('voiceschanged', () => trySet(), { once: true });
-    // fallback: جرب كمان مرة بعد ثانيتين
-    setTimeout(() => { if (!arabicVoice) trySet(); }, 2000);
+function hasArabicVoice() {
+  try {
+    return (
+      ('speechSynthesis' in window) &&
+      (window.speechSynthesis.getVoices() || []).some(v => /^ar/i.test(v.lang))
+    );
+  } catch (e) {
+    return false;
   }
 }
 
-function speakEgyptian(text) {
-  if (!('speechSynthesis' in window)) return;
-
-  // وقف أي كلام قديم
-  window.speechSynthesis.cancel();
-
-  function doSpeak() {
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    // جرب lang بشكل أوسع علشان كل الأجهزة
-    utterance.lang = arabicVoice ? arabicVoice.lang : 'ar';
-    utterance.rate = 0.85;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    if (arabicVoice) utterance.voice = arabicVoice;
-
-    // Android Chrome Bug: بيوقف الكلام لو طال النص
-    const androidTimer = setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
-        clearInterval(androidTimer);
-      } else if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-    }, 250);
-
-    utterance.onend = () => clearInterval(androidTimer);
-    utterance.onerror = (e) => {
-      clearInterval(androidTimer);
-      console.warn('Speech error:', e.error);
-    };
-
-    window.speechSynthesis.speak(utterance);
+function stopAllSpeech() {
+  if (fallbackAudio) {
+    try {
+      fallbackAudio.pause();
+      fallbackAudio.currentTime = 0;
+    } catch (e) {}
+    fallbackAudio = null;
   }
-
-  // لو الأصوات لسه مش متحملة، استنى وبعدين اتكلم
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.addEventListener('voiceschanged', () => doSpeak(), { once: true });
-  } else {
-    doSpeak();
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
   }
 }
 
-// نسخة بتنتظر انتهاء الكلام (للاستخدام في playAllTableRows)
-function speakAndWait(text) {
-  return new Promise((resolve) => {
-    if (!('speechSynthesis' in window)) { resolve(); return; }
+// نطق أونلاين بنفس طريقة تطبيق Kids بدقة
+function speakOnline(text) {
+  stopAllSpeech();
+  const clean = String(text || '')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ' ')
+    .replace(/[^\p{L}\p{N}\p{M}\s?!.,]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-    window.speechSynthesis.cancel();
+  if (!clean || !navigator.onLine) return Promise.resolve(false);
 
-    function doSpeak() {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = arabicVoice ? arabicVoice.lang : 'ar';
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      if (arabicVoice) utterance.voice = arabicVoice;
-
-      const androidTimer = setInterval(() => {
-        if (!window.speechSynthesis.speaking) clearInterval(androidTimer);
-        else if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      }, 250);
-
-      utterance.onend = () => { clearInterval(androidTimer); resolve(); };
-      utterance.onerror = () => { clearInterval(androidTimer); resolve(); };
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.addEventListener('voiceschanged', () => doSpeak(), { once: true });
+  const chunks = [];
+  let cur = '';
+  clean.split(/\s+/).forEach(w => {
+    if ((cur + ' ' + w).trim().length > 180) {
+      chunks.push(cur.trim());
+      cur = w;
     } else {
-      doSpeak();
+      cur = cur + ' ' + w;
     }
+  });
+  if (cur.trim()) chunks.push(cur.trim());
+
+  const token = (fallbackAudio = new Audio());
+  return chunks.reduce(
+    (p, c) =>
+      p.then(ok =>
+        ok === false
+          ? false
+          : new Promise(res => {
+              if (fallbackAudio !== token) return res(false);
+              const restore = setReferrerPolicy('no-referrer');
+              token.onloadstart = restore;
+              token.src =
+                'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=' +
+                encodeURIComponent(c);
+              token.onended = () => {
+                restore();
+                res(true);
+              };
+              token.onerror = () => {
+                restore();
+                res(false);
+              };
+              token.play().catch(() => {
+                restore();
+                res(false);
+              });
+            })
+      ),
+    Promise.resolve(true)
+  );
+}
+
+// دالة نطق النغمة لمسألة معينة (a × b)
+async function speakRhyme(a, b) {
+  stopAllSpeech();
+
+  // 1. جرب الملف المحلي أولاً (سريع جداً ومضمون للأندرويد)
+  const localOk = await new Promise(resolve => {
+    const audio = (fallbackAudio = new Audio(`audio/${a}_${b}.mp3`));
+    audio.onended = () => resolve(true);
+    audio.onerror = () => resolve(false);
+    audio.play().then(() => {}).catch(() => resolve(false));
+  });
+
+  if (localOk) return true;
+
+  // 2. إذا تعذر الملف المحلي، استخدم speakOnline بنفس طريقة Kids
+  const rhyme = getEgyptianRhyme(a, b);
+  if (navigator.onLine) {
+    const onlineOk = await speakOnline(rhyme);
+    if (onlineOk) return true;
+  }
+
+  // 3. البديل الأخير speechSynthesis
+  return new Promise(resolve => {
+    if (!('speechSynthesis' in window)) return resolve(false);
+    const u = new SpeechSynthesisUtterance(rhyme);
+    u.lang = 'ar-EG';
+    u.rate = 0.9;
+    const v = window.speechSynthesis.getVoices().find(x => /^ar/i.test(x.lang));
+    if (v) u.voice = v;
+    u.onended = () => resolve(true);
+    u.onerror = () => resolve(false);
+    window.speechSynthesis.speak(u);
+  });
+}
+
+// دالة نطق العبارات التشجيعية لمحمود
+async function speakCheer(text, audioKey) {
+  stopAllSpeech();
+
+  if (audioKey) {
+    const localOk = await new Promise(resolve => {
+      const audio = (fallbackAudio = new Audio(`audio/${audioKey}.mp3`));
+      audio.onended = () => resolve(true);
+      audio.onerror = () => resolve(false);
+      audio.play().then(() => {}).catch(() => resolve(false));
+    });
+    if (localOk) return true;
+  }
+
+  if (navigator.onLine) {
+    const onlineOk = await speakOnline(text);
+    if (onlineOk) return true;
+  }
+
+  return new Promise(resolve => {
+    if (!('speechSynthesis' in window)) return resolve(false);
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ar-EG';
+    u.rate = 0.9;
+    const v = window.speechSynthesis.getVoices().find(x => /^ar/i.test(x.lang));
+    if (v) u.voice = v;
+    u.onended = () => resolve(true);
+    u.onerror = () => resolve(false);
+    window.speechSynthesis.speak(u);
   });
 }
 
@@ -365,7 +437,7 @@ function initLearnSection() {
       haptic('tap');
       if (state.isPlayingAll) {
         state.isPlayingAll = false;
-        window.speechSynthesis.cancel();
+        stopAllSpeech();
         const playBtn = document.getElementById('btn-play-all');
         if (playBtn) playBtn.innerHTML = '<span>🔊 غنّي الجدول كله</span>';
       }
@@ -383,7 +455,7 @@ function initLearnSection() {
     playSound('tap');
     if (state.isPlayingAll) {
       state.isPlayingAll = false;
-      window.speechSynthesis.cancel();
+      stopAllSpeech();
       const playBtn = document.getElementById('btn-play-all');
       if (playBtn) playBtn.innerHTML = '<span>🔊 غنّي الجدول كله</span>';
       return;
@@ -413,7 +485,7 @@ function renderTableRows(tableNum) {
       playSound('tap');
       haptic('tap');
       highlightRow(row);
-      speakEgyptian(rhyme);
+      speakRhyme(tableNum, i);
     });
 
     container.appendChild(row);
@@ -441,17 +513,16 @@ async function playAllTableRows(tableNum) {
       highlightRow(row);
       row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    const rhyme = getEgyptianRhyme(tableNum, i);
-    // نستخدم speakAndWait علشان كل سطر ينتهي قبل ما يبدأ الجاي
-    await speakAndWait(rhyme);
+    // نطق كل سطر وانتظار انتهائه تماماً قبل الانتقال للسطر التالي
+    await speakRhyme(tableNum, i);
     if (!state.isPlayingAll || state.currentTable !== tableNum) break;
-    // استنى 300ms بين كل سطر وبعده
-    await new Promise(r => setTimeout(r, 300));
+    // استراحة مريحة بين كل سطر والتاني
+    await new Promise(r => setTimeout(r, 450));
   }
 
   if (state.isPlayingAll && state.currentTable === tableNum) {
     const finishPraise = "الله عليك يا حودة يا بطل، خلصت الجدول كله!";
-    speakEgyptian(finishPraise);
+    await speakCheer(finishPraise, 'finish');
     fireConfetti();
     addStars(10);
   }
@@ -562,7 +633,7 @@ function showQuizQuestion() {
 
   document.getElementById('num-a').textContent = q.a;
   document.getElementById('num-b').textContent = q.b;
-  document.getElementById('question-rhyme').textContent = `"${egyptianNames[q.a] || q.a} في ${egyptianNames[q.b] || q.b} بكام يا بطل؟"`;
+  document.getElementById('question-rhyme').textContent = `"${egyptianNames[q.a] || q.a} في ${egyptianNamesNoAl[q.b] || q.b} بكام يا بطل؟"`;
 
   const balloon = document.getElementById('cheer-balloon');
   balloon.classList.remove('show', 'wrong');
@@ -597,12 +668,13 @@ function handleChoice(button, selected, correct) {
     state.streak++;
     addStars(5);
 
-    const praise = cheersGood[Math.floor(Math.random() * cheersGood.length)];
+    const randCheerNum = Math.floor(Math.random() * cheersGood.length);
+    const praise = cheersGood[randCheerNum];
     balloonEmoji.textContent = '👏';
     balloonMsg.textContent = praise;
     balloon.classList.remove('wrong');
     balloon.classList.add('show');
-    speakEgyptian(praise.replace(/[^\u0621-\u064A\s]/g, ''));
+    speakCheer(praise.replace(/[^\u0621-\u064A\s]/g, ''), 'c_' + (randCheerNum + 1));
   } else {
     // Incorrect
     button.classList.add('incorrect');
@@ -617,10 +689,12 @@ function handleChoice(button, selected, correct) {
       }
     });
 
-    const retryMsg = cheersRetry[Math.floor(Math.random() * cheersRetry.length)];
+    const randRetryNum = Math.floor(Math.random() * cheersRetry.length);
+    const retryMsg = cheersRetry[randRetryNum];
     balloonEmoji.textContent = '💡';
     balloonMsg.textContent = retryMsg;
     balloon.classList.add('show', 'wrong');
+    speakCheer(retryMsg.replace(/[^\u0621-\u064A\s]/g, ''), 'retry_' + (randRetryNum + 1));
   }
 
   setTimeout(() => {
@@ -652,11 +726,11 @@ function endQuiz() {
     desc.textContent = "مستوى استثنائي وعقلك شغال زي الصاروخ ما شاء الله!";
     playSound('win');
     fireConfetti();
-    speakEgyptian("عاش يا حودة يا أسطورة، رفعت راسنا يا بطل!");
+    speakCheer("عاش يا حودة يا أسطورة، رفعت راسنا يا بطل!", 'c_1');
   } else {
     title.textContent = "بطل ومحاولة رائعة يا حودة! 👏";
     desc.textContent = "كل مرة بتلعب فيها بتكسب سرعة أكتر، جرب كمان جولة!";
-    speakEgyptian("بطل ومحاولة جميلة يا حودة، يالا نجرب كمان جولة!");
+    speakCheer("بطل ومحاولة جميلة يا حودة، يالا نجرب كمان جولة!", 'retry_1');
   }
 }
 
@@ -720,7 +794,7 @@ function nextRaceQuestion() {
           clearInterval(state.raceInterval);
           playSound('win');
           fireConfetti();
-          speakEgyptian("مبروك يا حودة كسبت السباق ببراعة!");
+          speakCheer("مبروك يا حودة كسبت السباق ببراعة!", "finish");
           setTimeout(() => {
             alert("🏎️🏆 عااااش يا حودة! كسبت الروبوت ووصلت لخط النهاية الأول!");
             initRaceGame();
