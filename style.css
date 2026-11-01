@@ -168,6 +168,22 @@ body {
   color: #fef08a;
 }
 
+.version-badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.6rem;
+  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
 /* App Main Content */
 .app-content {
   flex: 1;
@@ -275,6 +291,32 @@ body {
   font-size: 1.25rem;
   font-weight: 900;
   color: #312e81;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-count-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+}
+
+.table-smart-hint {
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  color: #166534;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-bottom: 4px;
 }
 
 .btn-sound-action {
