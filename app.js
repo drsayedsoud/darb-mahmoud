@@ -4,6 +4,8 @@
 
 // State
 const state = {
+  heroName: localStorage.getItem('hero_name') || 'محمود',
+  heroNick: localStorage.getItem('hero_nick') || 'حودة',
   stars: parseInt(localStorage.getItem('mahmoud_stars') || '0', 10),
   currentTable: 2,
   quizTable: 'all',
@@ -20,43 +22,67 @@ const state = {
 };
 
 // ============================================
+// تحديث اسم البطل في الواجهة
+// ============================================
+function updateHeroNameUI() {
+  const name = state.heroName || 'محمود';
+  const nick = state.heroNick || 'حودة';
+
+  // شاشة البداية (Splash)
+  const splashTitle = document.querySelector('.splash-title');
+  if (splashTitle) splashTitle.innerHTML = `أهلاً يا بطلنا<br>${name}! 🌟`;
+
+  // هيدر التطبيق
+  const headerName = document.querySelector('.user-name');
+  if (headerName) headerName.textContent = `${name} البطل 🌟`;
+
+  // حارة السباق
+  const laneLabel = document.querySelector('.lane-label');
+  if (laneLabel) laneLabel.textContent = `بطلنا ${name} 🦸‍♂️`;
+
+  // شهادة التقدير
+  const certName = document.querySelector('.cert-student-name');
+  if (certName) certName.textContent = `${name} البطل (${nick}) 🌟`;
+}
+
+// ============================================
 // AUDIO UNLOCK SPLASH
-// الـ Android Chrome بيمنع الصوت قبل أول ضغطة
 // ============================================
 window.addEventListener('DOMContentLoaded', () => {
   const splash = document.getElementById('audio-splash');
   const mainApp = document.getElementById('main-app');
   const startBtn = document.getElementById('splash-start-btn');
 
+  // تحديث الاسم أول ما الصفحة تفتح
+  updateHeroNameUI();
+
   startBtn.addEventListener('click', () => {
-    // 1) unlock AudioContext
-    getAudioCtx();
-    playSound('win');
+    try {
+      getAudioCtx();
+      playSound('tap');
+    } catch (e) {}
 
-    // 2) unlock speechSynthesis على Android - لازم تبدأ بجملة فاضية جوا الضغطة مباشرةً
-    const unlockUtter = new SpeechSynthesisUtterance(' ');
-    unlockUtter.volume = 0.01;
-    unlockUtter.lang = 'ar';
-    window.speechSynthesis.speak(unlockUtter);
+    // فتح المتصفح للصوت
+    try {
+      if ('speechSynthesis' in window) {
+        const unlockUtter = new SpeechSynthesisUtterance(' ');
+        unlockUtter.volume = 0.01;
+        unlockUtter.lang = 'ar';
+        window.speechSynthesis.speak(unlockUtter);
+      }
+    } catch (e) {}
 
-    // 3) حمّل الـ voices وسجّل اللي لقاه في الـ console للتشخيص
-    loadVoices((voice) => {
-      state.audioUnlocked = true;
-      console.log('✅ Voice loaded:', voice ? voice.name + ' / ' + voice.lang : 'none - using default');
-      console.log('All voices:', window.speechSynthesis.getVoices().map(v => v.lang + ' - ' + v.name).join('\n'));
-    });
-
-    // 4) اخفي الـ splash وأظهر التطبيق
+    // إخفاء الـ Splash وإظهار التطبيق بسلاسة
     splash.style.opacity = '0';
-    splash.style.transition = 'opacity 0.4s ease';
+    splash.style.transition = 'opacity 0.3s ease';
     setTimeout(() => {
       splash.style.display = 'none';
       mainApp.style.display = 'flex';
       mainApp.style.flexDirection = 'column';
       mainApp.style.minHeight = '100vh';
-    }, 400);
+    }, 300);
 
-    // 5) ابدأ التطبيق
+    // تشغيل التطبيق
     initApp();
   });
 });
@@ -892,6 +918,54 @@ function fireConfetti() {
 }
 
 // ============================================
+// صفحة / مودال الإعدادات (لتعديل اسم البطل واللقب)
+// ============================================
+function initSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  const btnOpen = document.getElementById('btn-open-settings');
+  const btnClose = document.getElementById('btn-close-settings');
+  const btnSave = document.getElementById('btn-save-settings');
+  const inputName = document.getElementById('input-hero-name');
+  const inputNick = document.getElementById('input-hero-nick');
+
+  if (!modal || !btnOpen) return;
+
+  btnOpen.addEventListener('click', () => {
+    playSound('tap');
+    haptic('tap');
+    inputName.value = state.heroName;
+    inputNick.value = state.heroNick;
+    modal.classList.remove('hidden');
+  });
+
+  const closeModal = () => {
+    playSound('tap');
+    modal.classList.add('hidden');
+  };
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      playSound('correct');
+      haptic('success');
+      const newName = inputName.value.trim() || 'محمود';
+      const newNick = inputNick.value.trim() || 'حودة';
+      state.heroName = newName;
+      state.heroNick = newNick;
+      localStorage.setItem('hero_name', newName);
+      localStorage.setItem('hero_nick', newNick);
+      updateHeroNameUI();
+      closeModal();
+      fireConfetti();
+    });
+  }
+}
+
+// ============================================
 // SERVICE WORKER REGISTRATION (Offline support)
 // ============================================
 if ('serviceWorker' in navigator) {
@@ -907,8 +981,9 @@ if ('serviceWorker' in navigator) {
 // ============================================
 function initApp() {
   document.getElementById('total-stars').textContent = state.stars;
+  updateHeroNameUI();
+  initSettingsModal();
   initLearnSection();
   initQuizSection();
   initCertificate();
-  loadVoices();
 }

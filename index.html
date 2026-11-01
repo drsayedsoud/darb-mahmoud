@@ -39,12 +39,40 @@
           <h1 class="user-name">محمود البطل 🌟</h1>
         </div>
       </div>
-      <div class="score-pill">
-        <span class="star-icon">⭐</span>
-        <span id="total-stars">0</span>
+      <div class="header-right-group">
+        <button id="btn-open-settings" class="btn-header-gear" title="إعدادات البطل">⚙️</button>
+        <div class="score-pill">
+          <span class="star-icon">⭐</span>
+          <span id="total-stars">0</span>
+        </div>
+        <div class="version-badge" title="إصدار الكاش">v9</div>
       </div>
-      <div class="version-badge" title="إصدار الكاش">v8</div>
     </header>
+
+    <!-- Modal صفحة الإعدادات -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ إعدادات البطل</h3>
+          <button id="btn-close-settings" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="settings-hint">خصص التطبيق باسم طفلك ليظهر في كل التحديات والشهادة:</p>
+
+          <div class="form-group">
+            <label for="input-hero-name" class="settings-label">اسم البطل:</label>
+            <input type="text" id="input-hero-name" class="settings-input" placeholder="مثال: محمود" maxlength="20">
+          </div>
+
+          <div class="form-group">
+            <label for="input-hero-nick" class="settings-label">اسم الدلع / اللقب في التشجيع:</label>
+            <input type="text" id="input-hero-nick" class="settings-input" placeholder="مثال: حودة" maxlength="20">
+          </div>
+
+          <button id="btn-save-settings" class="btn-primary-big">💾 حفظ التغييرات</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Main Screens View -->
     <main class="app-content">
