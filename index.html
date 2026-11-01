@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>بطل جدول الضرب - حودة البطل 🌟</title>
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Container for App -->
+  <div class="mobile-app-shell">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="user-greeting">
+        <span class="avatar-badge">🦸‍♂️</span>
+        <div class="user-info">
+          <span class="subtext">أهلاً يا بطلنا!</span>
+          <h1 class="user-name">محمود البطل 🌟</h1>
+        </div>
+      </div>
+      <div class="score-pill">
+        <span class="star-icon">⭐</span>
+        <span id="total-stars">0</span>
+      </div>
+    </header>
+
+    <!-- Main Screens View -->
+    <main class="app-content">
+
+      <!-- SECTION 1: النغمة المصرية (Learn & Chant) -->
+      <section id="tab-learn" class="screen-section active">
+        <div class="section-banner">
+          <h2>🎶 النغمة المصرية لجدول الضرب</h2>
+          <p>اسمع الجدول وغنيه مع حودة بالنغمة علشان يثبت في ثانية!</p>
+        </div>
+
+        <!-- Table Selector Pills (Horizontal Scroll on Mobile) -->
+        <div class="table-selector-scroll">
+          <div class="table-chips" id="table-chips">
+            <!-- Injected by JS: Tables 1 to 12 -->
+          </div>
+        </div>
+
+        <!-- Selected Table Card -->
+        <div class="table-display-card">
+          <div class="table-card-header">
+            <h3 id="current-table-title">جدول ضرب 2</h3>
+            <button id="btn-play-all" class="btn-sound-action">
+              <span>🔊 غنّي الجدول كله</span>
+            </button>
+          </div>
+
+          <!-- The List of Rows for this table -->
+          <div class="table-rows-list" id="table-rows-container">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: تحدي الأبطال (Interactive Quiz) -->
+      <section id="tab-quiz" class="screen-section">
+        <div class="quiz-container">
+          
+          <!-- Mode Choice if not started -->
+          <div id="quiz-setup" class="quiz-setup-box">
+            <h3>جاهز للتحدي يا حودة؟ 🥊</h3>
+            <p>اختار إنت عاوز تتحدى نفسك في جدول إيه:</p>
+            
+            <div class="quiz-table-grid" id="quiz-table-buttons">
+              <!-- JS generates buttons for 2..12 + "كوكتيل كل الجداول" -->
+            </div>
+
+            <button id="btn-start-quiz" class="btn-primary-big pulse">
+              🚀 ابدأ التحدي واكسب النجوم!
+            </button>
+          </div>
+
+          <!-- Active Game Box -->
+          <div id="quiz-game" class="quiz-game-box hidden">
+            <!-- Progress and Streak -->
+            <div class="quiz-status-bar">
+              <span id="quiz-question-counter">سؤال 1 من 10</span>
+              <div class="streak-badge">
+                <span>🔥 الحماس: </span>
+                <span id="streak-count">0</span>
+              </div>
+            </div>
+
+            <!-- Big Math Question -->
+            <div class="math-question-card">
+              <div class="question-expression" id="question-text">
+                <span id="num-a">5</span> × <span id="num-b">6</span> = ؟
+              </div>
+              <div class="question-rhyme" id="question-rhyme">
+                "الخمسة في ستة بكام يا بطل؟"
+              </div>
+            </div>
+
+            <!-- 4 Big Touch Buttons for Choices -->
+            <div class="choices-grid" id="quiz-choices">
+              <!-- Injected by JS -->
+            </div>
+
+            <!-- Egyptian Encouragement Balloon -->
+            <div class="cheer-balloon" id="cheer-balloon">
+              <span id="cheer-emoji">👏</span>
+              <span id="cheer-message">عاش يا حودة يا فنان!</span>
+            </div>
+          </div>
+
+          <!-- Quiz Result Screen -->
+          <div id="quiz-results" class="quiz-results-box hidden">
+            <div class="trophy-animation">🏆</div>
+            <h2 id="result-title">الله عليك يا حودة يا نجم!</h2>
+            <p id="result-desc">جاوبت 10 من 10 بدون أي تردد!</p>
+            
+            <div class="result-stats">
+              <div class="stat-item">
+                <span class="stat-val" id="result-score">10/10</span>
+                <span class="stat-lbl">إجابات صح</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-val" id="result-stars">+50 ⭐</span>
+                <span class="stat-lbl">نجوم جديدة</span>
+              </div>
+            </div>
+
+            <div class="results-actions">
+              <button id="btn-play-again" class="btn-primary-big">🔁 العب تاني</button>
+              <button id="btn-go-racing" class="btn-secondary-big">🏎️ اتحدى في السباق</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SECTION 3: سباق سيارات حودة (Racing Mini-Game) -->
+      <section id="tab-racing" class="screen-section">
+        <div class="racing-container">
+          <div class="race-header">
+            <h2>🏎️ سباق سيارات حودة الخارقة</h2>
+            <p>كل مسألة تحلها صح، عربية حودة هتسبق خط النهاية!</p>
+          </div>
+
+          <!-- Race Track View -->
+          <div class="race-track">
+            <!-- Mahmoud Track -->
+            <div class="track-lane">
+              <div class="lane-label">بطلنا محمود 🦸‍♂️</div>
+              <div class="track-bar">
+                <div class="finish-line">🏁</div>
+                <div class="car-sprite mahmoud-car" id="mahmoud-car">🏎️💨</div>
+              </div>
+            </div>
+
+            <!-- Rival Track -->
+            <div class="track-lane">
+              <div class="lane-label">الروبوت السريع 🤖</div>
+              <div class="track-bar">
+                <div class="finish-line">🏁</div>
+                <div class="car-sprite rival-car" id="rival-car">🚗💨</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Race Math Question -->
+          <div class="race-quiz-box">
+            <div class="race-question" id="race-question-text">
+              7 × 8 = ؟
+            </div>
+            <div class="race-options" id="race-options">
+              <!-- Choices -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: شهادة البطل (Certificate & Awards) -->
+      <section id="tab-certificate" class="screen-section">
+        <div class="certificate-container">
+          <div class="cert-card" id="printable-cert">
+            <div class="cert-border">
+              <div class="cert-badge">🏅 بطل الجمهورية في جدول الضرب 🏅</div>
+              <div class="cert-stars">⭐⭐⭐⭐⭐</div>
+              <h2 class="cert-title">شهادة شكر وتفوق</h2>
+              <p class="cert-text">تشهد منصة أبطال الرياضيات بأن البطل الشجاع:</p>
+              <h1 class="cert-student-name">محمود البطل (حودة) 🌟</h1>
+              <p class="cert-text">
+                قد حفظ جدول الضرب المصري كاملاً ببراعة وسرعة فائقة واستحق لقب:
+              </p>
+              <div class="cert-rank">🦁 أسد جدول الضرب 🦁</div>
+              <div class="cert-footer">
+                <span class="cert-date" id="cert-today-date">2026/11/01</span>
+                <span class="cert-signature">توقيع: بابا وماما فخورين بيك ❤️</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cert-actions">
+            <button id="btn-print-cert" class="btn-primary-big">🖨️ طباعة / حفظ الشهادة كصورة</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (Thumb-friendly for Mobile) -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="tab-learn">
+        <span class="nav-icon">🎵</span>
+        <span class="nav-label">النغمة</span>
+      </button>
+
+      <button class="nav-item" data-tab="tab-quiz">
+        <span class="nav-icon">⚡</span>
+        <span class="nav-label">التحدي</span>
+      </button>
+
+      <button class="nav-item" data-tab="tab-racing">
+        <span class="nav-icon">🏎️</span>
+        <span class="nav-label">السباق</span>
+      </button>
+
+      <button class="nav-item" data-tab="tab-certificate">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-label">الشهادة</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Audio elements & Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
