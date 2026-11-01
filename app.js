@@ -33,14 +33,17 @@ window.addEventListener('DOMContentLoaded', () => {
     getAudioCtx();
     playSound('win');
 
-    // 2) unlock speechSynthesis على Android
-    const unlock = new SpeechSynthesisUtterance('');
-    unlock.volume = 0;
-    window.speechSynthesis.speak(unlock);
+    // 2) unlock speechSynthesis على Android - لازم تبدأ بجملة فاضية جوا الضغطة مباشرةً
+    const unlockUtter = new SpeechSynthesisUtterance(' ');
+    unlockUtter.volume = 0.01;
+    unlockUtter.lang = 'ar';
+    window.speechSynthesis.speak(unlockUtter);
 
-    // 3) حمّل الـ voices
-    loadVoices(() => {
+    // 3) حمّل الـ voices وسجّل اللي لقاه في الـ console للتشخيص
+    loadVoices((voice) => {
       state.audioUnlocked = true;
+      console.log('✅ Voice loaded:', voice ? voice.name + ' / ' + voice.lang : 'none - using default');
+      console.log('All voices:', window.speechSynthesis.getVoices().map(v => v.lang + ' - ' + v.name).join('\n'));
     });
 
     // 4) اخفي الـ splash وأظهر التطبيق
@@ -218,39 +221,102 @@ function haptic(type) {
 let arabicVoice = null;
 
 function loadVoices(callback) {
-  const setVoice = () => {
+  const trySet = () => {
     const voices = window.speechSynthesis.getVoices();
-    arabicVoice = voices.find(v => v.lang.startsWith('ar')) || voices[0] || null;
+    if (voices.length === 0) return false;
+    // نجيب أفضل صوت عربي، أو أي صوت متاح
+    arabicVoice =
+      voices.find(v => v.lang === 'ar-EG') ||
+      voices.find(v => v.lang === 'ar-SA') ||
+      voices.find(v => v.lang.startsWith('ar')) ||
+      voices[0];
     if (callback) callback(arabicVoice);
+    return true;
   };
-  if (window.speechSynthesis.getVoices().length > 0) {
-    setVoice();
-  } else {
-    window.speechSynthesis.addEventListener('voiceschanged', setVoice, { once: true });
+
+  if (!trySet()) {
+    // Android بيحتاج وقت لتحميل الأصوات
+    window.speechSynthesis.addEventListener('voiceschanged', () => trySet(), { once: true });
+    // fallback: جرب كمان مرة بعد ثانيتين
+    setTimeout(() => { if (!arabicVoice) trySet(); }, 2000);
   }
 }
 
 function speakEgyptian(text) {
   if (!('speechSynthesis' in window)) return;
+
+  // وقف أي كلام قديم
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ar-EG';
-  utterance.rate = 0.9;
-  utterance.pitch = 1.1;
-  utterance.volume = 1;
-  if (arabicVoice) utterance.voice = arabicVoice;
+  function doSpeak() {
+    const utterance = new SpeechSynthesisUtterance(text);
 
-  // Android Chrome بيوقف الكلام لو طال النص، فنعمل resume تلقائي
-  const androidFix = setInterval(() => {
-    if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
+    // جرب lang بشكل أوسع علشان كل الأجهزة
+    utterance.lang = arabicVoice ? arabicVoice.lang : 'ar';
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    if (arabicVoice) utterance.voice = arabicVoice;
+
+    // Android Chrome Bug: بيوقف الكلام لو طال النص
+    const androidTimer = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(androidTimer);
+      } else if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    }, 250);
+
+    utterance.onend = () => clearInterval(androidTimer);
+    utterance.onerror = (e) => {
+      clearInterval(androidTimer);
+      console.warn('Speech error:', e.error);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // لو الأصوات لسه مش متحملة، استنى وبعدين اتكلم
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', () => doSpeak(), { once: true });
+  } else {
+    doSpeak();
+  }
+}
+
+// نسخة بتنتظر انتهاء الكلام (للاستخدام في playAllTableRows)
+function speakAndWait(text) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) { resolve(); return; }
+
+    window.speechSynthesis.cancel();
+
+    function doSpeak() {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = arabicVoice ? arabicVoice.lang : 'ar';
+      utterance.rate = 0.85;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      if (arabicVoice) utterance.voice = arabicVoice;
+
+      const androidTimer = setInterval(() => {
+        if (!window.speechSynthesis.speaking) clearInterval(androidTimer);
+        else if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      }, 250);
+
+      utterance.onend = () => { clearInterval(androidTimer); resolve(); };
+      utterance.onerror = () => { clearInterval(androidTimer); resolve(); };
+
+      window.speechSynthesis.speak(utterance);
     }
-  }, 250);
-  utterance.onend = () => clearInterval(androidFix);
-  utterance.onerror = () => clearInterval(androidFix);
 
-  window.speechSynthesis.speak(utterance);
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.addEventListener('voiceschanged', () => doSpeak(), { once: true });
+    } else {
+      doSpeak();
+    }
+  });
 }
 
 // Update UI Stars
@@ -297,6 +363,12 @@ function initLearnSection() {
     chip.addEventListener('click', () => {
       playSound('tap');
       haptic('tap');
+      if (state.isPlayingAll) {
+        state.isPlayingAll = false;
+        window.speechSynthesis.cancel();
+        const playBtn = document.getElementById('btn-play-all');
+        if (playBtn) playBtn.innerHTML = '<span>🔊 غنّي الجدول كله</span>';
+      }
       state.currentTable = i;
       document.querySelectorAll('.table-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
@@ -309,16 +381,38 @@ function initLearnSection() {
 
   document.getElementById('btn-play-all').addEventListener('click', () => {
     playSound('tap');
+    if (state.isPlayingAll) {
+      state.isPlayingAll = false;
+      window.speechSynthesis.cancel();
+      const playBtn = document.getElementById('btn-play-all');
+      if (playBtn) playBtn.innerHTML = '<span>🔊 غنّي الجدول كله</span>';
+      return;
+    }
     playAllTableRows(state.currentTable);
   });
 }
 
 function renderTableRows(tableNum) {
-  document.getElementById('current-table-title').textContent = `جدول ضرب ${tableNum}`;
+  const rowCount = 12 - tableNum + 1;
+  const countLabel = rowCount === 1 ? 'سطر واحد فقط 🎯' : `${rowCount} عمليات فقط ✨`;
+  document.getElementById('current-table-title').innerHTML = `جدول ضرب ${tableNum} <span class="table-count-badge">${countLabel}</span>`;
   const container = document.getElementById('table-rows-container');
   container.innerHTML = '';
 
-  for (let i = 1; i <= 12; i++) {
+  // معلومة ذكية للبطل: توضيح أن البداية من نفس العدد لتوفير الوقت لأن الأعداد السابقة تم حفظها
+  if (tableNum > 1) {
+    const hint = document.createElement('div');
+    hint.className = 'table-smart-hint';
+    if (tableNum === 12) {
+      hint.innerHTML = `💡 <strong>سطر واحد فقط (12 × 12)!</strong> لأن كل العمليات السابقة (12×1 إلى 12×11) حفظتها خلاص في الجداول اللي فاتت بالتبديل! 👏`;
+    } else {
+      hint.innerHTML = `💡 بنبدأ من <strong>${tableNum} × ${tableNum}</strong> لأن العمليات السابقة (${tableNum}×1 إلى ${tableNum}×${tableNum - 1}) حفظتها في الجداول السابقة بالتبديل! 🧠`;
+    }
+    container.appendChild(hint);
+  }
+
+  // يبدأ الجدول من نفس العدد (مثلاً جدول 5 يبدأ من 5×5، وجدول 7 من 7×7، وجدول 12 سطر واحد فقط 12×12)
+  for (let i = tableNum; i <= 12; i++) {
     const rhyme = getEgyptianRhyme(tableNum, i);
     const row = document.createElement('div');
     row.className = 'table-row-item';
@@ -349,24 +443,35 @@ function highlightRow(element) {
 async function playAllTableRows(tableNum) {
   if (state.isPlayingAll) return;
   state.isPlayingAll = true;
+  const playBtn = document.getElementById('btn-play-all');
+  if (playBtn) playBtn.innerHTML = '<span>⏹️ إيقاف</span>';
 
-  for (let i = 1; i <= 12; i++) {
+  // القراءة تبدأ من نفس العدد حتى 12
+  for (let i = tableNum; i <= 12; i++) {
+    if (!state.isPlayingAll || state.currentTable !== tableNum) break;
+
     const row = document.getElementById(`row-${tableNum}-${i}`);
     if (row) {
       highlightRow(row);
       row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     const rhyme = getEgyptianRhyme(tableNum, i);
-    speakEgyptian(rhyme);
-    await new Promise(r => setTimeout(r, 2200));
+    // نستخدم speakAndWait علشان كل سطر ينتهي قبل ما يبدأ الجاي
+    await speakAndWait(rhyme);
+    if (!state.isPlayingAll || state.currentTable !== tableNum) break;
+    // استنى 300ms بين كل سطر وبعده
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  if (state.isPlayingAll && state.currentTable === tableNum) {
+    const finishPraise = "الله عليك يا حودة يا بطل، خلصت الجدول كله!";
+    speakEgyptian(finishPraise);
+    fireConfetti();
+    addStars(10);
   }
 
   state.isPlayingAll = false;
-  // Final praise for finishing the table!
-  const finishPraise = "الله عليك يا حودة يا بطل، خلصت الجدول كله!";
-  speakEgyptian(finishPraise);
-  fireConfetti();
-  addStars(10);
+  if (playBtn) playBtn.innerHTML = '<span>🔊 غنّي الجدول كله</span>';
 }
 
 // ============================================
