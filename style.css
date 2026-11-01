@@ -247,39 +247,46 @@ body {
 .table-row-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   background: #f8fafc;
-  padding: 10px 14px;
+  padding: 8px 10px;
   border-radius: var(--radius-md);
   border: 1.5px solid #e2e8f0;
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .table-row-item:active, .table-row-item.highlighted {
   background: #fef3c7;
   border-color: #f59e0b;
-  transform: scale(1.02);
+  transform: scale(1.01);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
 }
 
 .row-math {
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 900;
   color: #1e293b;
-  display: flex;
-  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .row-egyptian {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #6366f1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .row-speaker-icon {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #f59e0b;
+  flex-shrink: 0;
 }
 
 /* SECTION 2: QUIZ TAB */

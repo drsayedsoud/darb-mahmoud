@@ -19,10 +19,18 @@ const state = {
 };
 
 // Egyptian dialect numbers mapping
+// nameA = العدد الأول (بالألف واللام): "التلاتة في..."
 const egyptianNames = {
   1: 'الواحد', 2: 'التنين', 3: 'التلاتة', 4: 'الأربعة', 5: 'الخمسة',
   6: 'الستة', 7: 'السبعة', 8: 'التمنية', 9: 'التسعة', 10: 'العشرة',
   11: 'الحداشر', 12: 'الاتناشر'
+};
+
+// nameB = العدد التاني (بدون ألف ولام): "في تلاتة بـ..."
+const egyptianNamesNoAl = {
+  1: 'واحد', 2: 'تنين', 3: 'تلاتة', 4: 'أربعة', 5: 'خمسة',
+  6: 'ستة', 7: 'سبعة', 8: 'تمنية', 9: 'تسعة', 10: 'عشرة',
+  11: 'حداشر', 12: 'اتناشر'
 };
 
 const egyptianResults = {
@@ -48,7 +56,8 @@ const egyptianResults = {
 
 function getEgyptianRhyme(a, b) {
   const nameA = egyptianNames[a] || a;
-  const nameB = egyptianNames[b] || b;
+  // العدد التاني بدون ألف ولام: "في تلاتة" مش "في التلاتة"
+  const nameB = egyptianNamesNoAl[b] || b;
   const prod = a * b;
   const res = egyptianResults[prod] || ('بـ ' + prod);
   return `${nameA} في ${nameB} ${res}`;
@@ -73,63 +82,81 @@ const cheersRetry = [
 ];
 
 // ============================================
-// Web Audio Synthesizer (No external files needed)
+// Web Audio Synthesizer
 // ============================================
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// لازم الـ AudioContext يتعمل بعد أول لمسة من المستخدم على الموبايل
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
 
 function playSound(type) {
   try {
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    const now = audioCtx.currentTime;
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
 
     if (type === 'correct') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(523.25, now); // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-      osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-      osc.start(now);
-      osc.stop(now + 0.4);
+      const notes = [523.25, 659.25, 783.99];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, now + idx * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.25);
+        osc.start(now + idx * 0.1);
+        osc.stop(now + idx * 0.1 + 0.25);
+      });
     } else if (type === 'wrong') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(220, now);
-      osc.frequency.setValueAtTime(180, now + 0.15);
+      osc.frequency.linearRampToValueAtTime(150, now + 0.3);
       gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
       osc.start(now);
       osc.stop(now + 0.35);
     } else if (type === 'win') {
       const notes = [440, 554, 659, 880];
       notes.forEach((freq, idx) => {
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        o.type = 'triangle';
-        o.frequency.value = freq;
-        g.gain.setValueAtTime(0.25, now + idx * 0.12);
-        g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.3);
-        o.start(now + idx * 0.12);
-        o.stop(now + idx * 0.12 + 0.35);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.25, now + idx * 0.13);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.13 + 0.3);
+        osc.start(now + idx * 0.13);
+        osc.stop(now + idx * 0.13 + 0.35);
       });
     } else if (type === 'tap') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.value = 400;
       gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
       osc.start(now);
       osc.stop(now + 0.08);
     }
   } catch (e) {
-    console.log("Audio not allowed yet", e);
+    console.warn('Audio error:', e);
   }
 }
 
