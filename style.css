@@ -404,9 +404,43 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   padding-bottom: 10px;
   border-bottom: 2px dashed #e2e8f0;
+}
+
+/* زر ومربع أنشودة اليوتيوب */
+.youtube-song-box {
+  margin-bottom: 14px;
+}
+
+.btn-youtube-song {
+  width: 100%;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, #e11d48, #f43f5e, #f97316);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+}
+
+.btn-youtube-song:active {
+  transform: scale(0.97);
+}
+
+.btn-youtube-song.playing {
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  animation: pulseAnim 1.6s infinite;
 }
 
 .table-card-header h3 {

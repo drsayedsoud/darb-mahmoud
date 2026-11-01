@@ -434,6 +434,8 @@ navItems.forEach(item => {
   item.addEventListener('click', () => {
     playSound('tap');
     haptic('tap');
+    stopYoutubeSong();
+    stopAllSpeech();
     const tabId = item.getAttribute('data-tab');
     navItems.forEach(b => b.classList.remove('active'));
     screens.forEach(s => s.classList.remove('active'));
@@ -446,6 +448,72 @@ navItems.forEach(item => {
     }
   });
 });
+
+// ============================================
+// أغاني جدول الضرب الحية للأطفال من اليوتيوب (جداول 1 إلى 4)
+// ============================================
+const YOUTUBE_TABLE_SONGS = {
+  1: { start: 2, end: 27 },
+  2: { start: 28, end: 57 },
+  3: { start: 58, end: 91 },
+  4: { start: 92, end: 128 },
+};
+
+let youtubeSongAudio = null;
+let youtubeSongInterval = null;
+
+function stopYoutubeSong() {
+  if (youtubeSongAudio) {
+    try {
+      youtubeSongAudio.pause();
+    } catch (e) {}
+    youtubeSongAudio = null;
+  }
+  if (youtubeSongInterval) {
+    clearInterval(youtubeSongInterval);
+    youtubeSongInterval = null;
+  }
+  const btn = document.getElementById('btn-play-youtube-song');
+  if (btn) {
+    btn.classList.remove('playing');
+    const lbl = document.getElementById('youtube-song-label');
+    if (lbl) lbl.textContent = `أنشودة جدول ${state.currentTable} الحية للأطفال (يوتيوب) 🎵`;
+  }
+}
+
+function toggleYoutubeTableSong(tableNum) {
+  if (youtubeSongAudio) {
+    stopYoutubeSong();
+    return;
+  }
+
+  const segment = YOUTUBE_TABLE_SONGS[tableNum];
+  if (!segment) return;
+
+  stopAllSpeech();
+  playSound('tap');
+  haptic('tap');
+
+  const btn = document.getElementById('btn-play-youtube-song');
+  const lbl = document.getElementById('youtube-song-label');
+
+  const audio = (youtubeSongAudio = new Audio('audio/song_1_to_4.mp4'));
+  audio.currentTime = segment.start;
+
+  if (btn) btn.classList.add('playing');
+  if (lbl) lbl.textContent = `⏹️ إيقاف أنشودة جدول ${tableNum}`;
+
+  audio.play().then(() => {
+    youtubeSongInterval = setInterval(() => {
+      if (!youtubeSongAudio || audio.currentTime >= segment.end) {
+        stopYoutubeSong();
+      }
+    }, 200);
+  }).catch(e => {
+    console.warn('Playback error', e);
+    stopYoutubeSong();
+  });
+}
 
 // ============================================
 // SECTION 1: LEARN (النغمة المصرية)
@@ -461,6 +529,7 @@ function initLearnSection() {
     chip.addEventListener('click', () => {
       playSound('tap');
       haptic('tap');
+      stopYoutubeSong();
       if (state.isPlayingAll) {
         state.isPlayingAll = false;
         stopAllSpeech();
@@ -477,8 +546,16 @@ function initLearnSection() {
 
   renderTableRows(state.currentTable);
 
+  const ytBtn = document.getElementById('btn-play-youtube-song');
+  if (ytBtn) {
+    ytBtn.addEventListener('click', () => {
+      toggleYoutubeTableSong(state.currentTable);
+    });
+  }
+
   document.getElementById('btn-play-all').addEventListener('click', () => {
     playSound('tap');
+    stopYoutubeSong();
     if (state.isPlayingAll) {
       state.isPlayingAll = false;
       stopAllSpeech();
@@ -494,6 +571,20 @@ function renderTableRows(tableNum) {
   document.getElementById('current-table-title').textContent = `جدول ضرب ${tableNum}`;
   const container = document.getElementById('table-rows-container');
   container.innerHTML = '';
+
+  // تفعيل أو إخفاء زر أغنية اليوتيوب للأطفال (متوفرة لجداول 1 إلى 4)
+  const banner = document.getElementById('youtube-song-banner');
+  if (banner) {
+    if (YOUTUBE_TABLE_SONGS[tableNum]) {
+      banner.style.display = 'block';
+      const lbl = document.getElementById('youtube-song-label');
+      if (lbl && !youtubeSongAudio) {
+        lbl.textContent = `أنشودة جدول ${tableNum} الحية للأطفال (يوتيوب) 🎵`;
+      }
+    } else {
+      banner.style.display = 'none';
+    }
+  }
 
   // يبدأ الجدول من نفس العدد (مثلاً جدول 5 يبدأ من 5×5، وجدول 7 من 7×7، وجدول 12 سطر واحد فقط 12×12)
   for (let i = tableNum; i <= 12; i++) {
