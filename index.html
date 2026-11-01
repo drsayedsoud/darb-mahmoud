@@ -14,8 +14,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
+
+  <!-- ====== AUDIO UNLOCK SPLASH (يظهر أول مرة فقط) ====== -->
+  <div id="audio-splash">
+    <div class="splash-inner">
+      <div class="splash-emoji">🦸‍♂️</div>
+      <h1 class="splash-title">أهلاً يا بطلنا<br>محمود! 🌟</h1>
+      <p class="splash-sub">اضغط على الزر علشان نبدأ مع الصوت!</p>
+      <button id="splash-start-btn">
+        🔊 ابدأ اللعب!
+      </button>
+    </div>
+  </div>
+
   <!-- Container for App -->
-  <div class="mobile-app-shell">
+  <div class="mobile-app-shell" id="main-app" style="display:none">
     
     <!-- Top Header -->
     <header class="app-header">
@@ -243,3 +256,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+

@@ -16,7 +16,47 @@ const state = {
   raceInterval: null,
   raceCurrentQuestion: null,
   isPlayingAll: false,
+  audioUnlocked: false,
 };
+
+// ============================================
+// AUDIO UNLOCK SPLASH
+// الـ Android Chrome بيمنع الصوت قبل أول ضغطة
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+  const splash = document.getElementById('audio-splash');
+  const mainApp = document.getElementById('main-app');
+  const startBtn = document.getElementById('splash-start-btn');
+
+  startBtn.addEventListener('click', () => {
+    // 1) unlock AudioContext
+    getAudioCtx();
+    playSound('win');
+
+    // 2) unlock speechSynthesis على Android
+    const unlock = new SpeechSynthesisUtterance('');
+    unlock.volume = 0;
+    window.speechSynthesis.speak(unlock);
+
+    // 3) حمّل الـ voices
+    loadVoices(() => {
+      state.audioUnlocked = true;
+    });
+
+    // 4) اخفي الـ splash وأظهر التطبيق
+    splash.style.opacity = '0';
+    splash.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => {
+      splash.style.display = 'none';
+      mainApp.style.display = 'flex';
+      mainApp.style.flexDirection = 'column';
+      mainApp.style.minHeight = '100vh';
+    }, 400);
+
+    // 5) ابدأ التطبيق
+    initApp();
+  });
+});
 
 // Egyptian dialect numbers mapping
 // nameA = العدد الأول (بالألف واللام): "التلاتة في..."
@@ -172,14 +212,44 @@ function haptic(type) {
   }
 }
 
-// Speech synthesis (Web Speech API)
+// ============================================
+// Speech Synthesis - Android Chrome Fix
+// ============================================
+let arabicVoice = null;
+
+function loadVoices(callback) {
+  const setVoice = () => {
+    const voices = window.speechSynthesis.getVoices();
+    arabicVoice = voices.find(v => v.lang.startsWith('ar')) || voices[0] || null;
+    if (callback) callback(arabicVoice);
+  };
+  if (window.speechSynthesis.getVoices().length > 0) {
+    setVoice();
+  } else {
+    window.speechSynthesis.addEventListener('voiceschanged', setVoice, { once: true });
+  }
+}
+
 function speakEgyptian(text) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ar-EG';
-  utterance.rate = 0.95;
-  utterance.pitch = 1.1; // Cheerful friendly tone for kids
+  utterance.rate = 0.9;
+  utterance.pitch = 1.1;
+  utterance.volume = 1;
+  if (arabicVoice) utterance.voice = arabicVoice;
+
+  // Android Chrome بيوقف الكلام لو طال النص، فنعمل resume تلقائي
+  const androidFix = setInterval(() => {
+    if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  }, 250);
+  utterance.onend = () => clearInterval(androidFix);
+  utterance.onerror = () => clearInterval(androidFix);
+
   window.speechSynthesis.speak(utterance);
 }
 
@@ -667,10 +737,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Initial Launch
-window.addEventListener('DOMContentLoaded', () => {
+// ============================================
+// initApp - يتشغل بعد ضغطة الـ splash
+// ============================================
+function initApp() {
   document.getElementById('total-stars').textContent = state.stars;
   initLearnSection();
   initQuizSection();
   initCertificate();
-});
+  loadVoices();
+}
