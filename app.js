@@ -393,23 +393,9 @@ function initLearnSection() {
 }
 
 function renderTableRows(tableNum) {
-  const rowCount = 12 - tableNum + 1;
-  const countLabel = rowCount === 1 ? 'سطر واحد فقط 🎯' : `${rowCount} عمليات فقط ✨`;
-  document.getElementById('current-table-title').innerHTML = `جدول ضرب ${tableNum} <span class="table-count-badge">${countLabel}</span>`;
+  document.getElementById('current-table-title').textContent = `جدول ضرب ${tableNum}`;
   const container = document.getElementById('table-rows-container');
   container.innerHTML = '';
-
-  // معلومة ذكية للبطل: توضيح أن البداية من نفس العدد لتوفير الوقت لأن الأعداد السابقة تم حفظها
-  if (tableNum > 1) {
-    const hint = document.createElement('div');
-    hint.className = 'table-smart-hint';
-    if (tableNum === 12) {
-      hint.innerHTML = `💡 <strong>سطر واحد فقط (12 × 12)!</strong> لأن كل العمليات السابقة (12×1 إلى 12×11) حفظتها خلاص في الجداول اللي فاتت بالتبديل! 👏`;
-    } else {
-      hint.innerHTML = `💡 بنبدأ من <strong>${tableNum} × ${tableNum}</strong> لأن العمليات السابقة (${tableNum}×1 إلى ${tableNum}×${tableNum - 1}) حفظتها في الجداول السابقة بالتبديل! 🧠`;
-    }
-    container.appendChild(hint);
-  }
 
   // يبدأ الجدول من نفس العدد (مثلاً جدول 5 يبدأ من 5×5، وجدول 7 من 7×7، وجدول 12 سطر واحد فقط 12×12)
   for (let i = tableNum; i <= 12; i++) {
